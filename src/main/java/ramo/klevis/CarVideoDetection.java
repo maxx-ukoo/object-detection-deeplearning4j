@@ -13,68 +13,76 @@ import static org.bytedeco.javacpp.opencv_highgui.*;
 
 public class CarVideoDetection {
 
-    private static final String AUTONOMOUS_DRIVING_RAMOK_TECH = "Autonomous Driving(ramok.tech)";
-    private volatile Frame[] videoFrame = new Frame[1];
-    private volatile Mat[] v = new Mat[1];
-    private Thread thread;
-    private volatile boolean stop = false;
-    private String winname;
+	private static final String AUTONOMOUS_DRIVING_RAMOK_TECH = "Autonomous Driving(ramok.tech)";
+	private volatile Frame[] videoFrame = new Frame[1];
+	private volatile Mat[] v = new Mat[1];
+	private Thread thread;
+	private volatile boolean stop = false;
+	private String winname;
 
-    public static void main(String[] args) throws java.lang.Exception {
-        new CarVideoDetection().startRealTimeVideoDetection("resources/videoSample.mp4");
-    }
+	public static void main(String[] args) throws java.lang.Exception {
+		new CarVideoDetection().startRealTimeVideoDetection("resources/videoSample.mp4");
+	}
 
-    public void startRealTimeVideoDetection(String videoFileName) throws java.lang.Exception {
+	public void startRealTimeVideoDetection(String videoFileName) throws java.lang.Exception {
 
-        File f = new File(videoFileName);
+		File f = new File(videoFileName);
 
-        FFmpegFrameGrabber grabber;
-        grabber = new FFmpegFrameGrabber(f);
-        grabber.start();
-        while (!stop) {
-            videoFrame[0] = grabber.grab();
-            if (videoFrame[0] == null) {
-                stop();
-                break;
-            }
-            v[0] = new OpenCVFrameConverter.ToMat().convert(videoFrame[0]);
-            if (v[0] == null) {
-                continue;
-            }
-            if (winname == null) {
-                winname = AUTONOMOUS_DRIVING_RAMOK_TECH + ThreadLocalRandom.current().nextInt();
-            }
+		FFmpegFrameGrabber grabber;
+		String url = "rtsp://192.168.0.21:554/user=admin_password=6QNMIQGe_channel=1_stream=0.sdp?real_stream";
+		//url = "http://app.live.112.events/hls/112hd_hi/index.m3u8";
 
-            if (thread == null) {
-                thread = new Thread(() -> {
-                    while (videoFrame[0] != null && !stop) {
-                        try {
-                            TinyYoloPrediction.getINSTANCE().markWithBoundingBox(v[0], videoFrame[0].imageWidth, videoFrame[0].imageHeight, true, winname);
-                        } catch (java.lang.Exception e) {
-                            throw new RuntimeException(e);
-                        }
-                    }
-                });
-                thread.start();
-            }
+	
+		grabber = new FFmpegFrameGrabber(url);
+		grabber.start();
+		while (!stop) {
+			videoFrame[0] = grabber.grab();
+			if (videoFrame[0] == null) {
+				stop();
+				break;
+			}
+			v[0] = new OpenCVFrameConverter.ToMat().convert(videoFrame[0]);
+			if (v[0] == null) {
+				continue;
+			}
+			if (winname == null) {
+				winname = AUTONOMOUS_DRIVING_RAMOK_TECH + ThreadLocalRandom.current().nextInt();
+			}
 
-            TinyYoloPrediction.getINSTANCE().markWithBoundingBox(v[0], videoFrame[0].imageWidth, videoFrame[0].imageHeight, false, winname);
+			if (thread == null) {
+				thread = new Thread(() -> {
+					while (videoFrame[0] != null && !stop) {
+						try {
+							if (v[0] != null) {
+								TinyYoloPrediction.getINSTANCE().markWithBoundingBox(v[0], videoFrame[0].imageWidth,
+										videoFrame[0].imageHeight, true, winname);
+							}
+						} catch (java.lang.Exception e) {
+							throw new RuntimeException(e);
+						}
+					}
+				});
+				thread.start();
+			}
 
-            imshow(winname, v[0]);
+			TinyYoloPrediction.getINSTANCE().markWithBoundingBox(v[0], videoFrame[0].imageWidth,
+					videoFrame[0].imageHeight, false, winname);
 
-            char key = (char) waitKey(20);
-            // Exit this loop on escape:
-            if (key == 27) {
-                stop();
-                break;
-            }
-        }
-    }
+			imshow(winname, v[0]);
 
-    public void stop() {
-        if (!stop) {
-            stop = true;
-            destroyAllWindows();
-        }
-    }
+			char key = (char) waitKey(20);
+			// Exit this loop on escape:
+			if (key == 27) {
+				stop();
+				break;
+			}
+		}
+	}
+
+	public void stop() {
+		if (!stop) {
+			stop = true;
+			destroyAllWindows();
+		}
+	}
 }
